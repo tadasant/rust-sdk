@@ -1,0 +1,36 @@
+== scenario: basic-then-bearer
+rmcp 0.0.0 against http://127.0.0.1:37847/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: Auth required, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = Some("Basic realm=\"proxy\"")
+    WWWAuthenticateParams    = resource_metadata_url=None scope=None error=None
+  POST (no token): AuthRequired { www_authenticate_header: "Basic realm=\"proxy\"" }
+  GET  (no token): AuthRequired { www_authenticate_header: "Basic realm=\"proxy\"" }
+  POST (token "low"): InsufficientScope { required_scope: None, www_authenticate_header: "Basic realm=\"proxy\"" }
+  GET  (token "low"): InsufficientScope { required_scope: None, www_authenticate_header: "Basic realm=\"proxy\"" }
+== scenario: quoted-text
+rmcp 0.0.0 against http://127.0.0.1:43459/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: Auth required, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = Some("Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:43459/.well-known/oauth-protected-resource\", scope=\"mcp:read\"")
+    WWWAuthenticateParams    = resource_metadata_url=Some("http://127.0.0.1:43459/elsewhere%22") scope=Some("mcp:read") error=None
+  POST (no token): AuthRequired { www_authenticate_header: "Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:43459/.well-known/oauth-protected-resource\", scope=\"mcp:read\"" }
+  GET  (no token): AuthRequired { www_authenticate_header: "Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:43459/.well-known/oauth-protected-resource\", scope=\"mcp:read\"" }
+  POST (token "low"): InsufficientScope { required_scope: Some("mcp:read"), www_authenticate_header: "Bearer error=\"insufficient_scope\", error_description=\"scope=mcp:read is not enough\", scope=\"mcp:write\"" }
+  GET  (token "low"): InsufficientScope { required_scope: Some("mcp:read"), www_authenticate_header: "Bearer error=\"insufficient_scope\", error_description=\"scope=mcp:read is not enough\", scope=\"mcp:write\"" }
+== scenario: no-challenge
+rmcp 0.0.0 against http://127.0.0.1:40453/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: unexpected server response: HTTP 401 Unauthorized: {"jsonrpc":"2.0","id":1,"error":{"code":-32001,"message":"Unauthorized"}}, when send initialize request)
+    is_authorization_required = false
+    auth_challenge           = None
+  POST (no token): UnexpectedServerResponse("HTTP 401 Unauthorized: {\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32001,\"message\":\"Unauthorized\"}}")
+  GET  (no token): Client(reqwest: HTTP status client error (401 Unauthorized) for url (http://127.0.0.1:40453/mcp))
+  POST (token "low"): UnexpectedServerResponse("HTTP 403 Forbidden: {\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32001,\"message\":\"Unauthorized\"}}")
+  GET  (token "low"): Client(reqwest: HTTP status client error (403 Forbidden) for url (http://127.0.0.1:40453/mcp))
+== scenario: no-challenge-unfinished-body
+rmcp 0.0.0 against http://127.0.0.1:46753/mcp
+  initialize (no token): still waiting after 3s
+  POST (no token): still reading the body after 3s
+  GET  (no token): Client(reqwest: HTTP status client error (401 Unauthorized) for url (http://127.0.0.1:46753/mcp))
+  POST (token "low"): still reading the body after 3s
+  GET  (token "low"): Client(reqwest: HTTP status client error (403 Forbidden) for url (http://127.0.0.1:46753/mcp))

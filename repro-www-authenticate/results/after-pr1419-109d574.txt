@@ -1,0 +1,38 @@
+== scenario: basic-then-bearer
+rmcp 0.0.0 against http://127.0.0.1:33643/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: Auth required, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = Some("Basic realm=\"proxy\"")
+    WWWAuthenticateParams    = resource_metadata_url=None scope=None error=None
+  POST (no token): AuthRequired { www_authenticate_header: "Basic realm=\"proxy\"" }
+  GET  (no token): AuthRequired { www_authenticate_header: "Basic realm=\"proxy\"" }
+  POST (token "low"): InsufficientScope { required_scope: None, www_authenticate_header: "Basic realm=\"proxy\"" }
+  GET  (token "low"): InsufficientScope { required_scope: None, www_authenticate_header: "Basic realm=\"proxy\"" }
+== scenario: quoted-text
+rmcp 0.0.0 against http://127.0.0.1:33685/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: Auth required, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = Some("Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:33685/.well-known/oauth-protected-resource\", scope=\"mcp:read\"")
+    WWWAuthenticateParams    = resource_metadata_url=Some("http://127.0.0.1:33685/elsewhere%22") scope=Some("mcp:read") error=None
+  POST (no token): AuthRequired { www_authenticate_header: "Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:33685/.well-known/oauth-protected-resource\", scope=\"mcp:read\"" }
+  GET  (no token): AuthRequired { www_authenticate_header: "Bearer error_description=\"use scope=mcp:read or resource_metadata=/elsewhere\", resource_metadata=\"http://127.0.0.1:33685/.well-known/oauth-protected-resource\", scope=\"mcp:read\"" }
+  POST (token "low"): InsufficientScope { required_scope: Some("mcp:read"), www_authenticate_header: "Bearer error=\"insufficient_scope\", error_description=\"scope=mcp:read is not enough\", scope=\"mcp:write\"" }
+  GET  (token "low"): InsufficientScope { required_scope: Some("mcp:read"), www_authenticate_header: "Bearer error=\"insufficient_scope\", error_description=\"scope=mcp:read is not enough\", scope=\"mcp:write\"" }
+== scenario: no-challenge
+rmcp 0.0.0 against http://127.0.0.1:39489/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: HTTP 401, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = None
+  POST (no token): HttpStatus { status: 401, retry_after: None }
+  GET  (no token): HttpStatus { status: 401, retry_after: None }
+  POST (token "low"): HttpStatus { status: 403, retry_after: None }
+  GET  (token "low"): HttpStatus { status: 403, retry_after: None }
+== scenario: no-challenge-unfinished-body
+rmcp 0.0.0 against http://127.0.0.1:44083/mcp
+  initialize (no token): Err(Send message error Transport [rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<reqwest::async_impl::client::Client>>] error: HTTP 401, when send initialize request)
+    is_authorization_required = true
+    auth_challenge           = None
+  POST (no token): HttpStatus { status: 401, retry_after: None }
+  GET  (no token): HttpStatus { status: 401, retry_after: None }
+  POST (token "low"): HttpStatus { status: 403, retry_after: None }
+  GET  (token "low"): HttpStatus { status: 403, retry_after: None }
